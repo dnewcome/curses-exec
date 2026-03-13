@@ -90,7 +90,9 @@ def _tui_main(stdscr, lines: list[str], rules: list[Rule]) -> None:
             elif len(matching) == 1:
                 rule, match = matching[0]
                 cmd = interpolate(rule.command, current_line, match)
-                execute_rule(stdscr, cmd)
+                execute_rule(stdscr, cmd, exit=rule.exit)
+                if rule.exit:
+                    break
                 status = f"ran: {cmd}"
                 status_attr = curses.color_pair(3)
             else:
@@ -98,7 +100,9 @@ def _tui_main(stdscr, lines: list[str], rules: list[Rule]) -> None:
                 if choice is not None:
                     rule, match = matching[choice]
                     cmd = interpolate(rule.command, current_line, match)
-                    execute_rule(stdscr, cmd)
+                    execute_rule(stdscr, cmd, exit=rule.exit)
+                    if rule.exit:
+                        break
                     status = f"ran: {cmd}"
                     status_attr = curses.color_pair(3)
 

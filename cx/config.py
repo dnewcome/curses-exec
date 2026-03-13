@@ -16,6 +16,7 @@ class Rule:
     key: str
     command: str
     description: str = ""
+    exit: bool = False
 
 
 def load_config(path: Path = CONFIG_PATH) -> list[Rule]:
@@ -50,6 +51,7 @@ def load_config(path: Path = CONFIG_PATH) -> list[Rule]:
                 key=key,
                 command=item["command"],
                 description=item.get("description", item["command"]),
+                exit=bool(item.get("exit", False)),
             )
         )
 

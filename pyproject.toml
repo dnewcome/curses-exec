@@ -8,5 +8,8 @@ version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0"]
 
+[tool.setuptools.packages.find]
+include = ["cx*"]
+
 [project.scripts]
 cx = "cx.main:main"

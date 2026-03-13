@@ -1,4 +1,4 @@
-# cx — curses-exec
+# cx - curses-exec
 
 `cx` is a terminal pager with vim-style navigation that can execute commands against selected lines. Pipe any command's output into it, navigate with `j`/`k`, press a configured key on a line, and a shell command runs — with the matched text interpolated in.
 

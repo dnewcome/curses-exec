@@ -98,6 +98,7 @@ rules:
 - **key** — Exactly one character. Case-sensitive. `k` and `K` are distinct.
 - **command** — A shell command. Passed to `/bin/sh -c`. May use pipes, redirects, and any shell syntax.
 - **description** — Optional. Displayed in the multi-rule selection menu and in the status bar. Falls back to the `command` string if omitted.
+- **exit** — Optional boolean, default `false`. When `true`, `cx` exits immediately after the command finishes instead of returning to the list. The "press any key" prompt is also skipped, which is useful for commands like `vim` that manage the terminal themselves.
 
 Multiple rules may share the same `key`. When you press that key, all rules whose `pattern` matches the current line are collected. If there is exactly one match, the command runs immediately. If there are multiple matches, a menu lets you choose.
 

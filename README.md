@@ -191,6 +191,7 @@ rules:
     key: e
     command: 'docker exec -it {1} /bin/sh'
     description: 'Open shell'
+    exit: true        # interactive shell; exit cx when done
 ```
 
 ### Network connections (`ss -tulpn | cx` or `netstat -tulpn | cx`)

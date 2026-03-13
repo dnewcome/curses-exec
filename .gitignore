@@ -13,3 +13,5 @@ env/
 
 # Tools
 .uv/
+
+.swp

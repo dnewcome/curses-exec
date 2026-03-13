@@ -211,6 +211,7 @@ rules:
     key: e
     command: '$EDITOR {1}'
     description: 'Open in editor'
+    exit: true        # editor takes over the terminal; no need to return to cx
 
   - pattern: '(\S+)$'
     key: l

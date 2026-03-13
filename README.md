@@ -309,6 +309,7 @@ rules:
     key: '<char>'                  # required; one character, case-sensitive
     command: '<shell command>'     # required; passed to sh -c
     description: '<label>'         # optional; shown in menus and status bar
+    exit: false                    # optional; true exits cx after the command runs
 ```
 
 Errors in the config (invalid regex, multi-character key) are reported on startup before the TUI opens, so you see them immediately.

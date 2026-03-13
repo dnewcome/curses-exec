@@ -5,6 +5,7 @@
 #   key:         single character to press
 #   command:     shell command template
 #   description: shown in menus when multiple rules match (optional)
+#   exit:        if true, exit cx after the command instead of returning (optional, default false)
 #
 # Template variables:
 #   {line}   full selected line (not shell-escaped — quote it in the command if needed)

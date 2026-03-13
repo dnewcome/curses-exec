@@ -1,0 +1,53 @@
+# cx config — copy to ~/.cx.yaml and customize
+#
+# Each rule has:
+#   pattern:     regex to match against the selected line
+#   key:         single character to press
+#   command:     shell command template
+#   description: shown in menus when multiple rules match (optional)
+#
+# Template variables:
+#   {line}   full selected line (not shell-escaped — quote it in the command if needed)
+#   {0}      the full regex match
+#   {1},{2}  capture group 1, 2, ...
+#   {name}   named capture group  (?P<name>...)
+
+rules:
+  # --- ps -ax output ----------------------------------------------------------
+  - pattern: '^\s*(\d+)'
+    key: k
+    command: 'kill {1}'
+    description: 'Kill process (SIGTERM)'
+
+  - pattern: '^\s*(\d+)'
+    key: K
+    command: 'kill -9 {1}'
+    description: 'Kill process (SIGKILL)'
+
+  # --- git log --oneline output -----------------------------------------------
+  - pattern: '^([0-9a-f]{7,40})'
+    key: d
+    command: 'git show {1} | less'
+    description: 'Show commit diff'
+
+  - pattern: '^([0-9a-f]{7,40})'
+    key: c
+    command: 'git checkout {1}'
+    description: 'Checkout commit'
+
+  # --- docker ps output -------------------------------------------------------
+  - pattern: '^([0-9a-f]{12})'
+    key: s
+    command: 'docker stop {1}'
+    description: 'Stop container'
+
+  - pattern: '^([0-9a-f]{12})'
+    key: l
+    command: 'docker logs {1} | less'
+    description: 'View container logs'
+
+  # --- any line ---------------------------------------------------------------
+  - pattern: '(.*)'
+    key: y
+    command: 'printf "%s" "{1}" | xclip -selection clipboard'
+    description: 'Yank line to clipboard'

@@ -1,0 +1,379 @@
+.TH CX 1 "2026-03-12" "cx 0.1.0" "User Commands"
+.
+.SH NAME
+cx \- curses-exec: interactive line selector with configurable command execution
+.
+.SH SYNOPSIS
+.B command
+.B |
+.B cx
+.
+.SH DESCRIPTION
+.B cx
+reads lines from standard input, displays them in a scrollable full-screen
+terminal interface, and executes shell commands against the selected line
+when the user presses a configured key.
+.PP
+Navigation uses vim-style key bindings.
+Actions are defined in
+.I ~/.cx.yaml
+as a list of rules, each pairing a regular expression pattern and a key
+character with a shell command template.
+Capture groups from the pattern are available as placeholders in the command.
+.PP
+.B cx
+is intentionally general.
+The same tool handles process management, git history browsing, Docker
+container control, log inspection, and any other task that follows the
+pattern of selecting a line and acting on extracted text.
+.
+.SH USAGE
+.B cx
+must be invoked at the end of a pipeline.
+It reads all of stdin before entering the interactive display,
+then reopens
+.I /dev/tty
+for keyboard input so that curses can function correctly inside a pipe.
+.PP
+Examples:
+.RS
+.nf
+ps \-ax | cx
+git log \-\-oneline | cx
+docker ps | cx
+find /var/log \-name '*.log' | cx
+kubectl get pods \-A | grep CrashLoop | cx
+.fi
+.RE
+.
+.SH NAVIGATION
+.TP
+.BR j ", down-arrow"
+Move selection down one line.
+.TP
+.BR k ", up-arrow"
+Move selection up one line.
+.TP
+.B g
+Jump to the first line.
+.TP
+.B G
+Jump to the last line.
+.TP
+.BR "Ctrl\-F" ", " "Page Down"
+Scroll down one page.
+.TP
+.BR "Ctrl\-B" ", " "Page Up"
+Scroll up one page.
+.TP
+.BR q ", " Esc
+Quit
+.BR cx .
+.PP
+Any other printable character triggers rule matching against the selected line.
+If no rule matches, the status bar shows a brief error message.
+If exactly one rule matches, the command runs immediately.
+If multiple rules match, a selection menu appears at the bottom of the screen.
+.
+.SH COMMAND EXECUTION
+When a rule matches, its command template is interpolated (see
+.B TEMPLATE VARIABLES
+below) and passed to
+.IR "/bin/sh \-c" .
+.PP
+.B cx
+suspends the curses display before running the command, so the command
+has full access to the terminal.
+Interactive commands such as
+.BR vim (1),
+.BR less (1),
+.BR ssh (1),
+and
+.B docker exec \-it
+work correctly.
+.PP
+After the command exits, the user is prompted to press any key, then the
+.B cx
+display resumes.
+.
+.SH CONFIG FILE
+.B cx
+reads
+.I ~/.cx.yaml
+on startup.
+If the file does not exist,
+.B cx
+runs in navigation-only mode with no actions available.
+.PP
+The file must be valid YAML.
+The top-level key is
+.BR rules ,
+which is a list of rule objects.
+.
+.SS Rule fields
+.TP
+.B pattern
+.I (required)
+A Python regular expression.
+Matched against the selected line using
+.IR re.search ,
+so the pattern does not need to anchor to the start of the line unless desired.
+Use parentheses for capture groups and
+.BI (?P< name >...)
+for named groups.
+.TP
+.B key
+.I (required)
+A single character.
+Case-sensitive:
+.B k
+and
+.B K
+are different keys.
+Multiple rules may share the same key; the rule whose
+.B pattern
+matches the current line is selected.
+.TP
+.B command
+.I (required)
+A shell command template.
+Passed to
+.IR "/bin/sh \-c" .
+Shell features such as pipes, redirects, and variable expansion are available.
+See
+.B TEMPLATE VARIABLES
+for placeholder syntax.
+.TP
+.B description
+.I (optional)
+A short label shown in the multi-rule selection menu and in the status bar
+after a command runs.
+Defaults to the
+.B command
+string if omitted.
+.
+.SS Example config
+.RS
+.nf
+rules:
+  - pattern: '^\\s*(\\d+)'
+    key: k
+    command: 'kill {1}'
+    description: 'Send SIGTERM'
+
+  - pattern: '^\\s*(\\d+)'
+    key: K
+    command: 'kill -9 {1}'
+    description: 'Send SIGKILL'
+
+  - pattern: '^([0-9a-f]{7,40})'
+    key: d
+    command: 'git show {1} | less'
+    description: 'Show commit diff'
+.fi
+.RE
+.
+.SH TEMPLATE VARIABLES
+Before a command is executed, the following placeholders in the
+.B command
+string are replaced:
+.TP
+.B {line}
+The full text of the selected line, exactly as it appeared in the input.
+.TP
+.B {0}
+The substring of the line that the
+.B pattern
+matched (the full regex match, not the whole line unless the pattern spans it).
+.TP
+.BR {1} ", " {2} ", " ...
+The text captured by the first, second, ... parenthesised group in
+.BR pattern .
+.TP
+.BI { name }
+The text captured by the named group
+.BI (?P< name >...)
+in
+.BR pattern .
+.PP
+Placeholders are substituted as plain strings without shell escaping.
+If a captured value may contain whitespace or shell metacharacters, quote
+the placeholder in the command:
+.PP
+.RS
+.nf
+command: 'grep \-r "{1}" /var/log'
+.fi
+.RE
+.PP
+An unrecognised placeholder (one that does not correspond to any group or
+reserved name) is left unchanged in the command string.
+.
+.SH MULTIPLE MATCHING RULES
+When the user presses a key and more than one rule with that key has a
+.B pattern
+that matches the current line, a selection overlay appears at the bottom of
+the screen listing the matching rules by their
+.B description
+fields.
+.PP
+Navigate the menu with
+.BR j / k ,
+confirm with
+.BR Enter ,
+and cancel with
+.BR Esc .
+.
+.SH STATUS BAR
+The bottom row of the display is reserved for a status bar showing:
+.PP
+.RS
+.I " <current>/<total>  <message>"
+.RE
+.PP
+.I current
+and
+.I total
+are the 1-based index of the selected line and the total number of lines.
+.I message
+reports the last action taken or an error if no rule matched.
+.
+.SH EXAMPLES
+.SS Process management
+.RS
+.nf
+ps \-ax | cx
+.fi
+.RE
+With rules keyed on the leading PID field, browse processes and send signals
+without leaving the list.
+.
+.SS Git history
+.RS
+.nf
+git log \-\-oneline | cx
+git log \-\-oneline \-\-author=alice | cx
+.fi
+.RE
+Navigate commits and run
+.BR "git show" ,
+.BR "git checkout" ,
+or
+.B "git cherry-pick"
+by pressing a single key.
+.
+.SS Docker
+.RS
+.nf
+docker ps | cx
+docker ps \-a | cx
+.fi
+.RE
+Stop, remove, exec into, or tail logs of containers interactively.
+.
+.SS Log inspection
+.RS
+.nf
+journalctl \-n 500 | cx
+tail \-n 200 /var/log/syslog | cx
+.fi
+.RE
+Select a log line and grep for surrounding context, or open the full log
+with
+.BR less .
+.
+.SS Filtering before entry
+.PP
+Because
+.B cx
+reads from stdin, any pipeline is valid input:
+.RS
+.nf
+ps \-ax | grep python | cx
+find . \-name '*.log' \-newer /tmp/ts | cx
+kubectl get pods \-A | grep \-v Running | cx
+.fi
+.RE
+.
+.SH FILES
+.TP
+.I ~/.cx.yaml
+User configuration file.
+Contains the
+.B rules
+list.
+Read once on startup; changes require restarting
+.BR cx .
+.
+.SH EXIT STATUS
+.TP
+.B 0
+Normal exit (user pressed
+.B q
+or
+.BR Esc ).
+.TP
+.B 1
+Invoked without piped input, no input received, or a fatal config error.
+.
+.SH DIAGNOSTICS
+If
+.I ~/.cx.yaml
+contains a rule with an invalid regular expression or a multi-character key,
+.B cx
+prints a descriptive error message to stderr and exits with status 1 before
+opening the curses display.
+.PP
+If a rule's command fails at runtime, the error output is shown in the terminal
+after the command exits and before the prompt to return to
+.BR cx .
+.
+.SH CAVEATS
+.B cx
+uses
+.IR re.search ,
+not
+.IR re.match ,
+so patterns are not anchored to the start of the line by default.
+To match from the beginning of a line, prefix the pattern with
+.BR ^ .
+.PP
+Template substitution is positional: the first
+.B (...)
+group is always
+.BR {1} ,
+regardless of the order named groups appear.
+Mixing numbered and named placeholders in the same command is supported.
+.PP
+Commands are run with
+.I SHELL=sh
+via
+.IR "subprocess.run(cmd, shell=True)" .
+The user's login shell is not consulted.
+Shell functions and aliases defined in
+.I ~/.bashrc
+or
+.I ~/.zshrc
+are not available unless the command explicitly sources them.
+.PP
+There is no undo.
+Commands such as
+.BR kill ,
+.BR "docker rm \-f" ,
+and
+.BR "rm"
+act immediately on confirmation.
+.
+.SH SEE ALSO
+.BR less (1),
+.BR ps (1),
+.BR kill (1),
+.BR grep (1),
+.BR pgrep (1),
+.BR fzf (1)
+.
+.SH AUTHOR
+Written by the project contributors.
+.
+.SH BUGS
+Report bugs at the project issue tracker.
